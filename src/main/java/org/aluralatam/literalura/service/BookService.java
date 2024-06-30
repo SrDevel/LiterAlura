@@ -5,8 +5,8 @@ import org.aluralatam.literalura.dto.BookDTO;
 import org.aluralatam.literalura.model.Author;
 import org.aluralatam.literalura.model.Book;
 import org.aluralatam.literalura.model.Language;
-import org.aluralatam.literalura.repository.BookRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,18 +14,7 @@ import java.util.List;
 @Service
 public class BookService {
 
-    @Autowired
-    private BookRepository repository;
-
-    public void saveBook(BookDTO bookDTO) {
-        repository.save(convertToEntity(bookDTO));
-    }
-
-    public List<BookDTO> getAllBooks(){
-        return convertToDTO(repository.findAll());
-    }
-
-    private List<BookDTO> convertToDTO(List<Book> book) {
+    private List<BookDTO> convertToDTO(@NotNull List<Book> book) {
         return book.stream()
                 .map(b -> new BookDTO(
                         b.getTitle(),
@@ -36,6 +25,8 @@ public class BookService {
                 .toList();
     }
 
+    @NotNull
+    @Contract("_ -> new")
     private BookDTO convertToDTO(Book book) {
         return new BookDTO(
                 book.getTitle(),
@@ -45,7 +36,9 @@ public class BookService {
         );
     }
 
-    private Book convertToEntity(BookDTO bookDTO) {
+    @NotNull
+    @Contract("_ -> new")
+    public static Book convertToEntity(BookDTO bookDTO) {
         return new Book(
                 bookDTO.title(),
                 bookDTO.authors().stream()
@@ -58,7 +51,7 @@ public class BookService {
         );
     }
 
-    private List<AuthorDTO> convertAuthorToDTO(List<Author> authors) {
+    private List<AuthorDTO> convertAuthorToDTO(@NotNull List<Author> authors) {
         return authors.stream()
                 .map(a -> new AuthorDTO(
                         a.getName(),
