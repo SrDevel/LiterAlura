@@ -29,4 +29,4 @@ Para acceder a la aplicación, se debe clonar el repositorio y ejecutar el archi
 
 ## :black_nib: Autor
 | [<img src="https://github.com/SrDevel/LiterAlura/assets/120146879/50b53fc8-114f-43c9-b4b5-0351fa5e6b55" width=115><br><sub>David A. Villada</sub>](https://github.com/SrDevel) |
-|:-----------------------------------------------------------------------------------:|
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|

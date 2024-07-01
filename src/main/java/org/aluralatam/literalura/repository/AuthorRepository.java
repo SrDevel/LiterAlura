@@ -6,9 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AuthorRepository extends JpaRepository<Author, Long> {
     @Query("SELECT a FROM Author a WHERE a.deathYear IS NULL OR a.deathYear > :year")
     List<Author> listAuthorsAliveUntilYear(int year);
+
+    Optional<Author> findByNameIgnoreCase(String name);
 }

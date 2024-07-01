@@ -15,11 +15,14 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String title;
-    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.PERSIST)
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.MERGE)
     private List<Author> author;
     @Enumerated(EnumType.STRING)
     private Language language;
     private Double downloads;
+    // Le da un valor por defecto a la propiedad favorite
+    @Column(columnDefinition = "boolean default false")
+    private Boolean favorite;
 
     public Book(String title, List<Author> author, Language language, Double downloads) {
         this.title = title;

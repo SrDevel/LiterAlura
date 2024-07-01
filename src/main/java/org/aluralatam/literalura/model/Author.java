@@ -21,7 +21,7 @@ public class Author {
     private int birthYear;
     private int deathYear;
     // Relacionamento com a classe Book
-    @ManyToMany(mappedBy = "author", fetch = FetchType.EAGER, cascade = CascadeType.PERSIST)
+    @ManyToMany(mappedBy = "author", fetch = FetchType.EAGER, cascade = CascadeType.MERGE)
     private List<Book> books;
 
     public Author(String name, int birthYear, int deathYear) {

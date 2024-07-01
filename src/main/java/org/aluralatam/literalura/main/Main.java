@@ -4,6 +4,7 @@ import org.aluralatam.literalura.dto.AuthorDTO;
 import org.aluralatam.literalura.dto.BookDTO;
 import org.aluralatam.literalura.dto.BookDataDTO;
 import org.aluralatam.literalura.model.Author;
+import org.aluralatam.literalura.model.Book;
 import org.aluralatam.literalura.model.Language;
 import org.aluralatam.literalura.repository.AuthorRepository;
 import org.aluralatam.literalura.repository.BookRepository;
@@ -11,11 +12,9 @@ import org.aluralatam.literalura.service.ApiConnection;
 import org.aluralatam.literalura.service.BookService;
 import org.aluralatam.literalura.service.DataConverterImpl;
 import org.aluralatam.literalura.validations.DataValidator;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 
 @Service
 public class Main {
@@ -23,6 +22,8 @@ public class Main {
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final Scanner sc = new Scanner(System.in);
+
+    private Book bookEntity;
 
     public Main(BookRepository bookRepository, AuthorRepository authorRepository) {
         this.bookRepository = bookRepository;
@@ -38,36 +39,25 @@ public class Main {
                     2. Listar todos los libros buscados
                     3. Listar libros por idioma
                     4. Autores vivos hasta un año específico
-                    5. Salir
+                    5. Estadísticas de libros
+                    6. Marcar libro como favorito
+                    7. Listar libros favoritos
+                    8. Salir
                     
                     Ingrese una opción:
                     """;
             System.out.println(menu);
-            String option = sc.next();
+            String option = sc.nextLine();
 
-            while (!DataValidator.isPositiveInteger(option)){
+            if (!DataValidator.isPositiveInteger(option)){
                 System.out.println("Opción \"" + option + "\" no válida\n");
                 System.out.println(menu);
                 option = sc.next();
                 sc.nextLine();
             }
-
+            
             switch (Integer.parseInt(option)){
-                case 1 -> {
-                    var book = searchBookByTitle();
-                    if (book.isPresent()){
-                        System.out.println("---- Libro encontrado ----");
-                        System.out.println("Título: " + book.get().title()
-                                + "\nAutores: " + String.valueOf(book.get().authors().stream().map(AuthorDTO::name).toList()).replace("[", "").replace("]", "")
-                                + "\nIdioma: " + book.get().languages().get(0)
-                                + "\nDescargas: " + book.get().downloads());
-                        System.out.println("--------------------------");
-
-                        bookRepository.save(BookService.convertToEntity(book.get()));
-                    } else {
-                        System.out.println("Libro no encontrado");
-                    }
-                }
+                case 1 -> searchBookByTitle();
                 case 2 -> {
                     System.out.println("------------ Lista de libros ------------");
                     bookRepository.findAll().forEach(b -> {
@@ -81,7 +71,10 @@ public class Main {
                 }
                 case 3 -> listBooksByLanguage();
                 case 4 -> listAuthorsAliveUntilYear();
-                case 5 -> {
+                case 5 -> statistics();
+                case 6 -> markBookAsFavorite();
+                case 7 -> listFavorites();
+                case 8 -> {
                     System.out.println("¡Hasta luego!");
                     System.exit(0);
                 }
@@ -91,8 +84,7 @@ public class Main {
         } while (true);
     }
 
-    @NotNull
-    private Optional<BookDTO> searchBookByTitle() {
+    private void searchBookByTitle() {
 
         System.out.println("Ingrese el título del libro que desea buscar: ");
 
@@ -100,8 +92,8 @@ public class Main {
 
         String URL_BASE = "https://gutendex.com/books/?search=";
 
-        // Nos aseguramos de la consulta a la api no se haga hasta que el usuario haya ingresado un título
-        while (title.isBlank()){
+        if (DataValidator.isValidString(title)){
+            System.out.println("Título \"" + title + "\" no válido");
             title = sc.nextLine();
         }
 
@@ -110,30 +102,50 @@ public class Main {
         var bookData = dataConverter.convert(json, BookDataDTO.class);
 
         String finalTitle = title;
-        return bookData.books().stream()
+        
+        Optional<BookDTO> book = bookData.books().stream()
                 .filter(l -> l.title().toUpperCase().contains(finalTitle.toUpperCase()))
                 .findFirst();
+
+        if (book.isPresent() &&
+                !bookRepository.existsByTitleIgnoreCase(book.get().title())){
+
+            System.out.println("---- Libro encontrado ----");
+            System.out.println("Título: " + book.get().title()
+                    + "\nAutores: " + String.valueOf(book.get().authors().stream().map(AuthorDTO::name).toList()).replace("[", "").replace("]", "")
+                    + "\nIdioma: " + book.get().languages().get(0)
+                    + "\nDescargas: " + book.get().downloads());
+            System.out.println("--------------------------");
+
+
+            bookEntity = BookService.convertToEntity(book.get());
+
+            List<Author> authors = getAuthorsFromBook();
+
+            bookEntity.setAuthor(authors);
+            bookRepository.save(bookEntity);
+
+        } else {
+            System.out.println("Libro no encontrado o ya existente en la base de datos");
+        }
     }
 
     private void listBooksByLanguage() {
-        // Obtenemos los idiomas del enum Language
         System.out.println("Idiomas disponibles: ");
         for (var language : Language.values()){
             System.out.println(language.getCode() + " - " + language.getSpanishName());
         }
+
         System.out.println("Ingrese el idioma de los libros que desea buscar: ");
         var userLanguage = sc.nextLine();
 
-        // Nos aseguramos de que el usuario haya ingresado un idioma válido
-        while (!DataValidator.isValidString(userLanguage)){
+        while (DataValidator.isValidString(userLanguage)){
             System.out.println("Idioma \"" + userLanguage + "\" no válido");
             userLanguage = sc.nextLine();
         }
 
-        // Obtenemos el idioma seleccionado
         var language = Language.fromCode(userLanguage);
 
-        // Obtenemos los libros que coincidan con el idioma seleccionado
         var books = bookRepository.findByLanguage(language);
 
         assert language != null;
@@ -148,14 +160,14 @@ public class Main {
                 System.out.println("----------------------------------------");
             });
         }
-
+        
     }
 
     private void listAuthorsAliveUntilYear(){
         System.out.println("Ingrese el año hasta el cual desea buscar autores vivos: ");
         var year = sc.nextLine();
 
-        while (!DataValidator.isPositiveInteger(year)){
+        if (DataValidator.isPositiveInteger(year)){
             System.out.println("Año \"" + year + "\" no válido");
             year = sc.nextLine();
         }
@@ -170,6 +182,76 @@ public class Main {
                 System.out.println("Nombre: " + a.getName()
                         + "\nAño de nacimiento: " + a.getBirthYear()
                         + "\nAño de muerte: " + a.getDeathYear() + "\n");
+                System.out.println("----------------------------------------");
+            });
+        }
+    }
+
+    private List<Author> getAuthorsFromBook(){
+        List<Author> authors = new ArrayList<>(bookEntity.getAuthor());
+
+        for (int i = 0; i < authors.size(); i++) {
+            Author author = authors.get(i);
+            Optional<Author> existingAuthor = authorRepository.findByNameIgnoreCase(author.getName());
+            if (existingAuthor.isPresent()) {
+                authors.set(i, existingAuthor.get());
+            } else {
+                Author savedAuthor = authorRepository.save(author);
+                authors.set(i, savedAuthor);
+            }
+        }
+        return authors;
+    }
+
+    private void statistics(){
+        List<Book> books = bookRepository.findAll();
+        DoubleSummaryStatistics stats = books.stream()
+                .mapToDouble(Book::getDownloads)
+                .summaryStatistics();
+
+        System.out.println("Estadísticas de descargas: ");
+        System.out.println("Descargas totales: " + stats.getSum()
+                + "\nPromedio de descargas: " + stats.getAverage()
+                + "\nMáximo de descargas: " + stats.getMax()
+                + "\nMínimo de descargas: " + stats.getMin());
+
+    }
+
+    private void markBookAsFavorite(){
+        bookRepository.findAll().forEach(b -> System.out.println(b.getTitle()));
+
+        System.out.println("Ingrese el título del libro que desea marcar como favorito: ");
+        var title = sc.nextLine();
+
+        if (DataValidator.isValidString(title)){
+            System.out.println("Título \"" + title + "\" no válido");
+            title = sc.nextLine();
+        }
+
+        var book = bookRepository.findByTitleIgnoreCase(title);
+
+        if (book.isPresent()){
+            book.get().setFavorite(true);
+            bookRepository.save(book.get());
+            System.out.println("Libro marcado como favorito");
+        } else {
+            System.out.println("Libro no encontrado");
+        }
+    }
+
+    private void listFavorites() {
+        var favorites = bookRepository.findByFavoriteTrue();
+
+        if (favorites.isEmpty()){
+            System.out.println("No hay libros marcados como favoritos");
+        } else {
+            System.out.println("------------ Libros favoritos ------------");
+            favorites.forEach(b -> {
+                System.out.println("Título: " + b.getTitle()
+                        + "\nAutores: " + String.valueOf(b.getAuthor().stream().map(Author::getName).toList()).replace("[", "").replace("]", "")
+                        + "\nIdioma: "
+                        + b.getLanguage().getSpanishName()
+                        + "\nDescargas: " + b.getDownloads() + "\n");
                 System.out.println("----------------------------------------");
             });
         }
